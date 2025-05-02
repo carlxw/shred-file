@@ -2,8 +2,11 @@ import sys
 import os
 import random
 
-from typing import List
+from threading import Thread
+from typing import List 
 from io import BufferedRandom
+
+NUM_THREADS = 8
 
 def main():
     """
@@ -47,21 +50,30 @@ def destroy_contents(dir_uri: str, filename: str):
     """
     print(f"Destroying {filename}...")
     try: 
-        fp: BufferedRandom = open(os.path.join(dir_uri, filename), "rb+")
-        contents: bytes = fp.read()
-        file_length: int = len(contents)
+        uri = os.path.join(dir_uri, filename)
+        file_length = os.path.getsize(uri)
+        start_point = 0
+        partition_size = file_length // NUM_THREADS
 
-        # Reset the fp after performing a full file 
-        # read since it's now at the end of the file
-        fp.seek(0)
+        # Multithread the file shredding
+        threads: List[Thread] = []
+        for i in range(NUM_THREADS):
+            # Ensure that all bytes are considered
+            if i != NUM_THREADS - 1:
+                end_point = start_point + partition_size
+            else:
+                end_point = file_length
 
-        for _ in range(file_length):
-            byte = random_byte()
-            fp.write(byte)
+            args = (uri, start_point, end_point,)
 
-        fp.flush()
-        fp.truncate()
-        fp.close()
+            thread = Thread(target=write_contents, args=args)
+            threads.append(thread)    
+            thread.start()
+
+            start_point = end_point
+
+        for thread in threads:
+            thread.join()
     except IOError:
         print(f"Failed to open and modify {filename}")
 
@@ -70,6 +82,23 @@ def destroy_contents(dir_uri: str, filename: str):
     else:
         print(f"Failed to delete {filename}")
 
+    return
+
+
+def write_contents(uri: str, start: int, end: int):
+    """
+    Multithreaded function to subdivide the 
+    random file writing into partitions
+    """
+    fp: BufferedRandom = open(uri, "rb+")
+    fp.seek(start)
+
+    for _ in range(start, end):
+        byte = random_byte()
+        fp.write(byte)
+
+    fp.flush()
+    fp.close()
     return
 
 
