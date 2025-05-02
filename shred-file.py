@@ -6,13 +6,18 @@ from typing import List
 from io import BufferedRandom
 
 def main():
+    """
+    argv[1] - File to destroy
+    argv[2] - Directory to target, optional
+    """
     args: List[str] = sys.argv
     
-    if len(args) == 1:
-        print("Expected one argument")
+    if len(args) < 2:
+        print("Expected at least one argument.")
+        return
 
     filename: str = args[1]
-    cwd = os.getcwd()
+    cwd = args[2] if len(args) > 2 else os.getcwd()
 
     destroy_contents(cwd, filename)
 
